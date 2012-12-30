@@ -7,7 +7,7 @@ The code is pretty straightforward
 
 For more details and a short explanation of the theory behind this, please refer to:
 
- - My original blogpost: http://tomchop
+ - My original blogpost: http://tomchop.me/2012/12/yo-dawg-i-heard-you-like-xoring/
  - The insipiring post: http://playingwithothers.com/2012/12/20/decoding-xor-shellcode-without-a-key/
 
 Related work:
