@@ -68,7 +68,7 @@ def iterative(crypt,search):
 			logging.info("Norm_search:\t %s" % " ".join(a.encode('hex') for a in norm_search))
 			logging.info("================================================================")
 
-			indexes = [m.start() for m in re.finditer(norm_search, norm_crypt)]
+			indexes = [m.start() for m in re.finditer(re.escape(norm_search), norm_crypt)]
 
 			# cycle through all search results
 			if len(indexes) > 0:
