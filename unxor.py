@@ -30,7 +30,7 @@ Written by Thomas Chopitea (@tomchop_)
 
 # quick shannon-entropy calculation
 def H(data):
-  h = 0
+  	h = 0
 	entropy = 0
 	for x in range(256):
 		p_x = float(data.count(chr(x)))/float(len(data))
