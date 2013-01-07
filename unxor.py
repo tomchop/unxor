@@ -52,7 +52,7 @@ def iterative(crypt,search):
 	find = False
 	decryptions = []
 	keys = []
-	while len(norm_search) > 0:
+	while len(norm_search) > 0 and not find:
 		i += 1
 		norm_crypt = xor(norm_crypt,crypt[i:])
 		norm_search = xor(norm_search,search[i:])
