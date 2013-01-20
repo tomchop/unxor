@@ -5,6 +5,7 @@ import re
 import math
 import argparse
 import logging
+import sys
 
 """
 
@@ -17,7 +18,7 @@ The code is pretty straightforward
 
 For more details and a short explanation of the theory behind this, please refer to:
 
- - My original blogpost: http://tomchop
+ - My original blogpost: http://tomchop.me/2012/12/yo-dawg-i-heard-you-like-xoring/
  - The insipiring post: http://playingwithothers.com/2012/12/20/decoding-xor-shellcode-without-a-key/
 
 Related work:
@@ -39,12 +40,107 @@ def H(data):
 			entropy -= p_x * math.log(p_x,2)
 	return entropy
 
+
+# generate key from bytes
+def genkey(key,keylen):
+	repeat = ""
+	key = key.decode('hex')
+	while (len(repeat) < keylen):
+		repeat += key
+	return repeat[:keylen]
+
 # easier this way
 def xor(plaintext,key):
 	return "".join(chr(ord(p)^ord(k)) for p, k in zip(plaintext,key))
 
 
-def iterative(crypt,search):
+# we reduce the problem to single-byte key search by selecting every other nth byte from the cyphertext and the known-plaintext
+def selective(crypt, search):
+
+	keylen = 1
+	find = False
+	decryptions = []
+	keys = []
+
+	while keylen < len(search) and not find:
+		sel_crypt = crypt[::keylen]
+		sel_search = search[::keylen]
+
+		norm_crypt = xor(sel_crypt,sel_crypt[1:])
+		norm_search = xor(sel_search,sel_search[1:])
+
+		if len(norm_search) > 0:
+
+			logging.info("[*] Trying key length %s:" % keylen)
+			logging.debug("================================================================")
+			logging.debug("Crypt:\t\t %s" % " ".join(a.encode('hex') for a in crypt))
+			logging.debug("Norm_crypt:\t %s" % " ".join(a.encode('hex') for a in norm_crypt)) 
+			logging.debug("Norm_search:\t %s" % " ".join(a.encode('hex') for a in norm_search))
+			logging.debug("================================================================")
+
+			indexes = [m.start() for m in re.finditer(re.escape(norm_search), norm_crypt)]
+
+
+			offset = 0
+			# we haven't found the normalized search, so let's try using an offset
+			while offset < keylen and len(indexes) == 0 and len(norm_search) > 0:
+					offset += 1
+					logging.debug("Offset: %s", offset)
+					
+					sel_crypt = crypt[offset::keylen]
+					norm_crypt = xor(sel_crypt,sel_crypt[1:])
+
+					
+					if len(norm_search) > 0:
+						indexes = [m.start() for m in re.finditer(re.escape(norm_search), norm_crypt)]
+
+					
+			# something was found
+			if len(indexes) > 0:
+
+				for index in indexes:
+					logging.debug("[*] Search term (%s) found at %s " % ("^".join(sel_search), index))
+					logging.debug("[*] Meaning %s in the cyphertext" % (index*keylen+offset))
+
+					keystr_guess = sel_crypt[index:index+len(norm_search)]	
+					
+					keystr_guess = xor(keystr_guess,sel_search)[:1]
+					logging.debug("(%s, %s)" %(keystr_guess, keystr_guess.encode('hex')))
+					
+					# we have to 'expand' the partial keystream found to the original keylength
+					long_key = ""
+					long_plaintext = ""
+					
+					# we assume that the place where our symbol was found is the start of the search string
+					# this may or may not be a coincidence
+
+					for i in range(keylen):
+						
+						if i % keylen == 0:
+							long_key += keystr_guess
+						else:
+							long_key += chr(ord(search[i])^ord(crypt[index*keylen+i+offset]))
+
+					long_key = long_key[-(offset % keylen):] + long_key[:-(offset % keylen)]
+
+					logging.info("[*] Keystream guess: %s" % (long_key.encode('hex')))
+					decrypt = xor(crypt,genkey(long_key.encode('hex'),len(crypt)))
+
+					if decrypt.find(search) != -1:
+						find = True
+						if long_key not in keys:
+							decryptions.append(decrypt)
+							keys.append(long_key)
+					else:
+						keylen += 1
+
+			else:
+				keylen += 1
+
+	return decryptions, keys
+
+
+def iterative(crypt, search, once=False):
 	
 	norm_crypt = crypt
 	norm_search = search
@@ -60,41 +156,45 @@ def iterative(crypt,search):
 		if i % 2 == 1 and len(norm_search) > 0:
 			keylen = (i/2 + i%2)
 
-
-			print "[*] Trying key length %s:" % keylen
-			logging.info("================================================================")
-			logging.info("Crypt:\t\t\t %s" % " ".join(a.encode('hex') for a in crypt))
-			logging.info("Norm:\t\t\t %s" % " ".join(a.encode('hex') for a in norm_crypt)) 
-			logging.info("Norm_search:\t %s" % " ".join(a.encode('hex') for a in norm_search))
-			logging.info("================================================================")
+			logging.info("[*] Trying key length %s:" % keylen)
+			logging.debug("================================================================")
+			logging.debug("Crypt:\t\t\t %s" % " ".join(a.encode('hex') for a in crypt))
+			logging.debug("Norm:\t\t\t %s" % " ".join(a.encode('hex') for a in norm_crypt)) 
+			logging.debug("Norm_search:\t %s" % " ".join(a.encode('hex') for a in norm_search))
+			logging.debug("================================================================")
 
 			indexes = [m.start() for m in re.finditer(re.escape(norm_search), norm_crypt)]
 
 			# cycle through all search results
 			if len(indexes) > 0:
-				logging.info("[!] More than one occurence of the search string found. Some might be coincidence, some might not.")
-				logging.info("[!] String found at %s" % ", ".join(str(a) for a in indexes))
+				logging.debug("[!] One or more occurences of the search string found. Some might be coincidence, some might not.")
+				logging.debug("[!] String found at %s" % ", ".join(str(a) for a in indexes))
 				for index in indexes:
-					logging.info("\n[*] Search term found at %s " % index)
-					keystr = crypt[index:index+len(norm_search)]
-					keystr_guess = "".join(chr(ord(a)^ord(b)) for a,b in zip(keystr,search))
-					keystr_guess = keystr_guess[0:keylen]
+					logging.debug("\n[*] Search term found at %s " % index)
+					keystr_guess = crypt[index:index+len(norm_search)]
+					#keystr_guess = "".join(chr(ord(a)^ord(b)) for a,b in zip(keystr,search))
+					keystr_guess = xor(keystr_guess,search)
+					keystr_guess = keystr_guess[:keylen]
 					
 					if len(norm_search) < keylen:
 						logging.info("[.] Normalized search (%s) is shorter than key length (%s)" % (len(norm_search), keylen))
 						logging.info("[.] This might be a false positive")
-					print "[*] Keystream guess: %s" % keystr_guess.encode('hex')
+					logging.info("[*] Keystream guess: %s" % keystr_guess.encode('hex'))
 					decrypt, key = recover_key(crypt,keystr_guess,keylen,index,search)
-					find = True
-					if key not in keys:
-						keys.append(key)
-						decryptions.append(decrypt)
+					if decrypt.find(search) != -1:
+						find = True
+						if key not in keys:
+							keys.append(key)
+							decryptions.append(decrypt)
 			else:
-				print "[!] Search term not found. Increasing norm level / key length."
+				logging.info("[!] Search term not found. Increasing norm level / key length.")
+			if once:
+				return None, None
 	if find:
-		return decryptions
+		return decryptions, keys
 	elif len(norm_search) == 0: 
-		print "[!] Normalization level too high given the length of the known plaintext. Try again with a longer known plaintext."
+		logging.info("[!] Normalization level too high given the length of the known plaintext. Try again with a longer known plaintext.")
+		return None, None
 			
 
 
@@ -125,59 +225,79 @@ def recover_key(crypt, keystr_guess, keylen, index, search):
 	while len(key) < len(crypt):
 		key += key
 
-	print "[*] Recovered key: %s" % key[:keylen].encode('hex')
+	logging.info("[*] Recovered key: %s\n" % key[:keylen].encode('hex'))
 
 	decrypt = xor(crypt,key)
 	
-	return decrypt, key
+	return decrypt, key[:keylen]
 
 
-# use for testing purposes
-def genkey(keylen):
-	key = os.urandom(keylen)
-	repeat = ""
-	while (len(repeat) < 200):
-		repeat += key
-	return repeat
 
 
 if __name__ == '__main__':
 
-	parser = argparse.ArgumentParser(description="Decode XOR-encoded files using known-plaintext attacks")
-	parser.add_argument("file", help="The file to open")
-	parser.add_argument("search", help="The known plaintext")
-	parser.add_argument("--dump",help="Dump the decrypted data to file")
-	parser.add_argument("-v", "--verbose", help="Verbose output", action="store_true")
-	parser.add_argument("-x", "--hex", help="Search in hex", action="store_true")
+	parser = argparse.ArgumentParser(description="Decode XOR-encoded files. Can try guessing keys using known-plaintext attacks.")
+	
+	mutex = parser.add_mutually_exclusive_group(required=True)
+	mutex.add_argument("-g", "--guess", help="Search string to use when trying known-plaintext attacks")
+	mutex.add_argument("-k", "--key", help="The XOR key (hex)")
+
+	guess = parser.add_argument_group(title='Unknown key')
+	guess.add_argument("-m","--method",choices=['iterative','selective'], default="iterative")
+	guess.add_argument("-x", "--hex", help="Search in hex", action="store_true")
+	
+	parser.add_argument("infile", nargs="?", help="The file to read from", type=argparse.FileType("r"), default=sys.stdin)
+	parser.add_argument("outfile", nargs="?", help="The dump file", type=argparse.FileType('w'), default=sys.stdout)
+	parser.add_argument("-v", "--verbose", help="Verbose output", type=int, choices=[0,1,2], default=0)
+	
 	args = parser.parse_args()
+	infile = args.infile
+	outfile = args.outfile
 
-	if args.verbose:
+	if args.verbose == 1:
 		logging.basicConfig(level=logging.INFO, format="%(message)s")
+	if args.verbose == 2:
+		logging.basicConfig(level=logging.DEBUG, format="%(message)s")
 
-	with open(args.file, "r") as f:
-		crypt = f.read()
-	search = args.search
 
-	# some quick statistics
-	print "Stats ==================="
-	print "Encrypted data length:\t%s" % len(crypt)
-	print "Search string length:\t%s" % len(search)
-	print "Encrypted data entropy:\t%s" % H(crypt)
-	print "Search string entropy:\t%s" % H(search)
-	print "=========================\n"
+	if args.key:
+		if not re.match("^([a-fA-F0-9]{2,2})+$",args.key):
+			print "The key must be given in hex (e.g. FF00FF00)"
+			exit()
+		crypt = infile.read()
+		key = genkey(args.key,len(crypt))
 
-	decrypt = iterative(crypt,args.search)
+		outfile.write(xor(crypt,key))
 
-	if args.dump:
-		with open(args.dump, "w") as dump:
-			for d in decrypt:
-				dump.write("Decryption of file %s\n" % args.file)
-				dump.write("===========================================================\n")
-				dump.write(d)
-				dump.write("\n===========================================================\n\n")
-	else:
-		for d in decrypt:
-			print "\nDecryption of file %s found" % args.file
-			print "==========================================================="
-			print d
-			print "===========================================================\n\n"
+
+	if args.guess:
+
+		crypt = infile.read()
+		search = args.guess
+
+		# some quick stats
+		logging.info( "\nStats ========================")
+		logging.info( "Encrypted data length:\t%s" % len(crypt))
+		logging.info( "Search string length:\t%s" % len(search))
+		logging.info( "Encrypted data entropy:\t%s" % H(crypt))
+		logging.info( "Search string entropy:\t%s" % H(search))
+		logging.info( "==============================\n")
+
+
+		if args.method == "iterative":
+			decrypt, key = iterative(crypt, search)
+
+		if args.method == "selective":
+			decrypt, key = selective(crypt, search)
+
+		if not decrypt and not key:
+			exit()
+
+		for i in range(len(decrypt)):
+			d = decrypt[i]
+			k = key[i]
+			if args.verbose > 0:
+				outfile.write("Decryption attempt (key: 0x%s)\n" % k.encode('hex'))
+			outfile.write(d)
+
+
