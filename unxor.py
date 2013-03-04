@@ -158,8 +158,8 @@ def iterative(crypt, search, once=False):
 
 			logging.info("[*] Trying key length %s:" % keylen)
 			logging.debug("================================================================")
-			logging.debug("Crypt:\t\t\t %s" % " ".join(a.encode('hex') for a in crypt))
-			logging.debug("Norm:\t\t\t %s" % " ".join(a.encode('hex') for a in norm_crypt)) 
+			logging.debug("Crypt:\t\t %s" % " ".join(a.encode('hex') for a in crypt))
+			logging.debug("Norm:\t\t %s" % " ".join(a.encode('hex') for a in norm_crypt)) 
 			logging.debug("Norm_search:\t %s" % " ".join(a.encode('hex') for a in norm_search))
 			logging.debug("================================================================")
 
@@ -182,10 +182,13 @@ def iterative(crypt, search, once=False):
 					logging.info("[*] Keystream guess: %s" % keystr_guess.encode('hex'))
 					decrypt, key = recover_key(crypt,keystr_guess,keylen,index,search)
 					if decrypt.find(search) != -1:
+						logging.info("[*] Recovered key: %s" % key[:keylen].encode('hex'))
 						find = True
 						if key not in keys:
 							keys.append(key)
 							decryptions.append(decrypt)
+					else:
+						logging.info("[x] Invalid key")
 			else:
 				logging.info("[!] Search term not found. Increasing norm level / key length.")
 			if once:
@@ -225,13 +228,20 @@ def recover_key(crypt, keystr_guess, keylen, index, search):
 	while len(key) < len(crypt):
 		key += key
 
-	logging.info("[*] Recovered key: %s\n" % key[:keylen].encode('hex'))
-
 	decrypt = xor(crypt,key)
 	
 	return decrypt, key[:keylen]
 
 
+def decryption(crypt, search, method):
+
+		if method == "iterative":
+			decrypt, key = iterative(crypt, search)
+
+		if method == "selective":
+			decrypt, key = selective(crypt, search)
+
+		return decrypt, key
 
 
 if __name__ == '__main__':
@@ -283,12 +293,7 @@ if __name__ == '__main__':
 		logging.info( "Search string entropy:\t%s" % H(search))
 		logging.info( "==============================\n")
 
-
-		if args.method == "iterative":
-			decrypt, key = iterative(crypt, search)
-
-		if args.method == "selective":
-			decrypt, key = selective(crypt, search)
+		decrypt, key = decryption(crypt, search, args.method)
 
 		if not decrypt and not key:
 			exit()
@@ -297,7 +302,13 @@ if __name__ == '__main__':
 			d = decrypt[i]
 			k = key[i]
 			if args.verbose > 0:
-				outfile.write("Decryption attempt (key: 0x%s)\n" % k.encode('hex'))
+				outfile.write("\nDecryption attempt (key: 0x%s)\n" % k.encode('hex'))
 			outfile.write(d)
+			if args.verbose > 0:
+				outfile.write("\n")
+
+
+
+		
 
 
