@@ -53,6 +53,11 @@ def genkey(key,keylen):
 def xor(plaintext,key):
 	return "".join(chr(ord(p)^ord(k)) for p, k in zip(plaintext,key))
 
+def xor_full(plaintext, key):
+	while len(key) < len(plaintext):
+		key += key
+	return xor(plaintext,key)
+
 
 # we reduce the problem to single-byte key search by selecting every other nth byte from the cyphertext and the known-plaintext
 def selective(crypt, search):
@@ -94,7 +99,6 @@ def selective(crypt, search):
 					if len(norm_search) > 0:
 						indexes = [m.start() for m in re.finditer(re.escape(norm_search), norm_crypt)]
 
-					
 			# something was found
 			if len(indexes) > 0:
 
@@ -115,28 +119,28 @@ def selective(crypt, search):
 					# this may or may not be a coincidence
 
 					for i in range(keylen):
-						
-						if i % keylen == 0:
-							long_key += keystr_guess
+						if (index*keylen+i+offset) < len(crypt):
+							if i % keylen == 0:
+								long_key += keystr_guess
+							else:
+								long_key += chr(ord(search[i])^ord(crypt[index*keylen+i+offset]))
+							
+					if long_key != "":
+						long_key = long_key[-(offset % keylen):] + long_key[:-(offset % keylen)]
+
+						logging.info("[*] Keystream guess: %s" % (long_key.encode('hex')))
+						decrypt = xor(crypt,genkey(long_key.encode('hex'),len(crypt)))
+
+						if decrypt.find(search) != -1:
+							find = True
+							if long_key not in keys:
+								decryptions.append(decrypt)
+								keys.append(long_key)
 						else:
-							long_key += chr(ord(search[i])^ord(crypt[index*keylen+i+offset]))
-
-					long_key = long_key[-(offset % keylen):] + long_key[:-(offset % keylen)]
-
-					logging.info("[*] Keystream guess: %s" % (long_key.encode('hex')))
-					decrypt = xor(crypt,genkey(long_key.encode('hex'),len(crypt)))
-
-					if decrypt.find(search) != -1:
-						find = True
-						if long_key not in keys:
-							decryptions.append(decrypt)
-							keys.append(long_key)
-					else:
-						keylen += 1
+							keylen += 1
 
 			else:
 				keylen += 1
-
 	return decryptions, keys
 
 
@@ -148,14 +152,19 @@ def iterative(crypt, search, once=False):
 	find = False
 	decryptions = []
 	keys = []
+
+	# keep normalizing as much as possible
 	while len(norm_search) > 0 and not find:
 		i += 1
+
+		# normalization process happens here
 		norm_crypt = xor(norm_crypt,crypt[i:])
 		norm_search = xor(norm_search,search[i:])
 
 		if i % 2 == 1 and len(norm_search) > 0:
-			keylen = (i/2 + i%2)
+			keylen = (i/2 + 1)
 
+			# print info
 			logging.info("[*] Trying key length %s:" % keylen)
 			logging.debug("================================================================")
 			logging.debug("Crypt:\t\t %s" % " ".join(a.encode('hex') for a in crypt))
@@ -163,24 +172,36 @@ def iterative(crypt, search, once=False):
 			logging.debug("Norm_search:\t %s" % " ".join(a.encode('hex') for a in norm_search))
 			logging.debug("================================================================")
 
+			# gather all indexes where an occurrence of norm_search is found in norm_crypt
+			# means that search is in crypt at the same index
 			indexes = [m.start() for m in re.finditer(re.escape(norm_search), norm_crypt)]
 
-			# cycle through all search results
+			# check if we have search results
 			if len(indexes) > 0:
 				logging.debug("[!] One or more occurences of the search string found. Some might be coincidence, some might not.")
 				logging.debug("[!] String found at %s" % ", ".join(str(a) for a in indexes))
+
+				# cycle through search results
 				for index in indexes:
 					logging.debug("\n[*] Search term found at %s " % index)
+
+					# guessing keystream from index to index+len(norm_search)
 					keystr_guess = crypt[index:index+len(norm_search)]
-					#keystr_guess = "".join(chr(ord(a)^ord(b)) for a,b in zip(keystr,search))
+					# crypt ^ plaintext = keystream
 					keystr_guess = xor(keystr_guess,search)
+					# first keystream guess
 					keystr_guess = keystr_guess[:keylen]
 					
+
 					if len(norm_search) < keylen:
 						logging.info("[.] Normalized search (%s) is shorter than key length (%s)" % (len(norm_search), keylen))
 						logging.info("[.] This might be a false positive")
 					logging.info("[*] Keystream guess: %s" % keystr_guess.encode('hex'))
+					
+					# recover the actual key from the keystream guess - many decryptions and keys possible
 					decrypt, key = recover_key(crypt,keystr_guess,keylen,index,search)
+					
+					# check if the plaintext is found in the decrypted text
 					if decrypt.find(search) != -1:
 						logging.info("[*] Recovered key: %s" % key[:keylen].encode('hex'))
 						find = True
@@ -189,12 +210,19 @@ def iterative(crypt, search, once=False):
 							decryptions.append(decrypt)
 					else:
 						logging.info("[x] Invalid key")
+
+			# we don't have any search results
 			else:
 				logging.info("[!] Search term not found. Increasing norm level / key length.")
+			# ?
 			if once:
 				return None, None
+
+	# we seem to have a valid decryption
 	if find:
 		return decryptions, keys
+	
+	# no valid encryption found 
 	elif len(norm_search) == 0: 
 		logging.info("[!] Normalization level too high given the length of the known plaintext. Try again with a longer known plaintext.")
 		return None, None
@@ -216,7 +244,8 @@ def recover_key(crypt, keystr_guess, keylen, index, search):
 		logging.info("[?] Or use a longer search string")
 	
 	while len(keystr_guess) < keylen:
-		# we take a wild guess, and suppose the keystream guess was found because of an occurrence of our search term
+		# we take a wild guess, and suppose the keystream guess was found 
+		# because of an occurrence of our search term in the plaintext
 		findings = decrypt.find(search[:(index%len(keystr_guess))])
 		keystr_guess += chr(ord(crypt[index+len(keystr_guess)])^ord(search[len(keystr_guess)]))
 
@@ -233,7 +262,11 @@ def recover_key(crypt, keystr_guess, keylen, index, search):
 	return decrypt, key[:keylen]
 
 
-def decryption(crypt, search, method):
+def decryption(crypt, search, method, debug=False):
+
+		if debug:
+			logging.basicConfig(level=logging.DEBUG, format="%(message)s")
+
 
 		if method == "iterative":
 			decrypt, key = iterative(crypt, search)
