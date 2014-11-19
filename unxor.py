@@ -43,7 +43,7 @@ def H(data):
 
 
 # generate key from bytes
-def genkey(key,keylen):
+def genkey(key, keylen):
 	repeat = ""
 	key = key.decode('hex')
 	while (len(repeat) < keylen):
@@ -74,7 +74,7 @@ def selective(crypt, search):
 
 		if len(norm_search) > 0:
 
-			logging.info("[*] Trying key length %s:" % keylen)
+			logging.info("[*] Trying key length %s" % keylen)
 			logging.debug("================================================================")
 			logging.debug("Crypt:\t\t %s" % " ".join(a.encode('hex') for a in crypt))
 			logging.debug("Norm_crypt:\t %s" % " ".join(a.encode('hex') for a in norm_crypt)) 
@@ -101,12 +101,11 @@ def selective(crypt, search):
 			if len(indexes) > 0:
 
 				for index in indexes:
-					logging.debug("[*] Search term (%s) found at %s " % ("^".join(sel_search), index))
-					logging.debug("[*] Meaning %s in the cyphertext" % (index*keylen+offset))
+					logging.debug("[*] Search term (%s) found at %s (%s in the cyphertext)" % ("^".join(sel_search), index, index*keylen+offset))
 
 					keystr_guess = sel_crypt[index:index+len(norm_search)]	
 					
-					keystr_guess = xor(keystr_guess,sel_search)[:1]
+					keystr_guess = xor(keystr_guess, sel_search)[:1]
 					logging.debug("(%s, %s)" %(keystr_guess, keystr_guess.encode('hex')))
 					
 					# we have to 'expand' the partial keystream found to the original keylength
@@ -127,7 +126,7 @@ def selective(crypt, search):
 						long_key = long_key[-(offset % keylen):] + long_key[:-(offset % keylen)]
 
 						logging.info("[*] Keystream guess: %s" % (long_key.encode('hex')))
-						decrypt = xor(crypt,genkey(long_key.encode('hex'),len(crypt)))
+						decrypt = xor(crypt, genkey(long_key.encode('hex'), len(crypt)))
 
 						if decrypt.find(search) != -1:
 							find = True
@@ -163,12 +162,12 @@ def iterative(crypt, search, once=False):
 			keylen = (i/2 + 1)
 
 			# print info
-			logging.info("[*] Trying key length %s:" % keylen)
-			logging.debug("================================================================")
+			logging.info("[*] Trying key length %s" % keylen)
+			logging.debug("="*64)
 			logging.debug("Crypt:\t\t %s" % " ".join(a.encode('hex') for a in crypt))
 			logging.debug("Norm:\t\t %s" % " ".join(a.encode('hex') for a in norm_crypt)) 
 			logging.debug("Norm_search:\t %s" % " ".join(a.encode('hex') for a in norm_search))
-			logging.debug("================================================================")
+			logging.debug("="*64)
 
 			# gather all indexes where an occurrence of norm_search is found in norm_crypt
 			# means that search is in crypt at the same index
@@ -190,7 +189,6 @@ def iterative(crypt, search, once=False):
 					# first keystream guess
 					keystr_guess = keystr_guess[:keylen]
 					
-
 					if len(norm_search) < keylen:
 						logging.info("[.] Normalized search (%s) is shorter than key length (%s)" % (len(norm_search), keylen))
 						logging.info("[.] This might be a false positive")
@@ -232,14 +230,14 @@ def recover_key(crypt, keystr_guess, keylen, index, search):
 	partial = False
 	
 	# this means we haven't found the whole key, some bytes are missing
-	if len(keystr_guess) < keylen: partial = True
+	if len(keystr_guess) < keylen:
+		partial = True
 
-	decrypt = xor(crypt,(keystr_guess+"\0x00"))
+	decrypt = xor(crypt, keystr_guess+"\x00")
 
 	if len(keystr_guess) < keylen:
 		logging.info("[?] Some bytes of the key are missing, taking a wild guess (assuming findings ~ search query)")
-		logging.info("[?] If results don't make sense, try searching for something with less entropy (e.g. URLs)")
-		logging.info("[?] Or use a longer search string")
+		logging.info("[?] If results don't make sense, try searching for something with less entropy (e.g. URLs), or use a longer search string")
 	
 	while len(keystr_guess) < keylen:
 		# we take a wild guess, and suppose the keystream guess was found 
@@ -284,7 +282,7 @@ if __name__ == '__main__':
 	mutex.add_argument("-k", "--key", help="The XOR key (hex)")
 
 	guess = parser.add_argument_group(title='Unknown key')
-	guess.add_argument("-m","--method",choices=['iterative','selective'], default="iterative")
+	guess.add_argument("-m","--method", choices=['iterative','selective'], default="iterative", help='Use iterative or selective (experimental) method')
 	guess.add_argument("-x", "--hex", help="Search in hex", action="store_true")
 	
 	parser.add_argument("infile", nargs="?", help="The file to read from", type=argparse.FileType("r"), default=sys.stdin)
@@ -333,8 +331,9 @@ if __name__ == '__main__':
 			d = decrypt[i]
 			k = key[i]
 			if args.verbose > 0:
-				outfile.write("\nDecryption attempt (key: 0x%s)\n" % k.encode('hex'))
-			outfile.write(d)
+				outfile.write("Decryption attempt (key: 0x%s)\n%s\n" % (k.encode('hex'), d))
+			else:
+				outfile.write(d)
 			if args.verbose > 0:
 				outfile.write("\n")
 
