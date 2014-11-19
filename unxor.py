@@ -6,6 +6,7 @@ import math
 import argparse
 import logging
 import sys
+import itertools
 
 """
 
@@ -50,14 +51,11 @@ def genkey(key,keylen):
 	return repeat[:keylen]
 
 # easier this way
-def xor(plaintext,key):
-	return "".join(chr(ord(p)^ord(k)) for p, k in zip(plaintext,key))
+def xor(plaintext, key):
+	return "".join(chr(ord(p)^ord(k)) for p, k in zip(plaintext, key))
 
 def xor_full(plaintext, key):
-	while len(key) < len(plaintext):
-		key += key
-	return xor(plaintext,key)
-
+	return "".join(chr(ord(p)^ord(k)) for p, k in zip(plaintext, itertools.cycle(key)))
 
 # we reduce the problem to single-byte key search by selecting every other nth byte from the cyphertext and the known-plaintext
 def selective(crypt, search):
