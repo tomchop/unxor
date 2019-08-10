@@ -9,7 +9,7 @@ half as long as the known-plaintext, in linear complexity.
 Here's a demo of the Golang binary decrypting a plaintext file XORed with
 `0xABCDEF` and where our known-plaintext is `leggings`.
 
-[![asciicast](https://asciinema.org/a/N8AesY5euNnVnObTDbauY5q4X.svg)](https://asciinema.org/a/N8AesY5euNnVnObTDbauY5q4X)
+![demo](demo.gif)
 
 ## Usage (Golang)
 
