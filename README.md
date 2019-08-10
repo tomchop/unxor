@@ -15,7 +15,7 @@ Here's a demo of the Golang binary decrypting a plaintext file XORed with
 
 This should work:
 
-    $ go install github.com/tomchop/unxor
+    $ go get github.com/tomchop/unxor
     $ $GOBIN/unxor -h
     Usage of /Users/tomchop/code/go/bin/unxor:
     -f string
