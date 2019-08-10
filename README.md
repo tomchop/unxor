@@ -8,8 +8,8 @@ This tool will search through an XOR-encoded file (binary, text-file, whatever) 
 
 This should work:
 
-    $ go get github.com/tomchop/unxor
-    $ unxor -h
+    $ go install github.com/tomchop/unxor
+    $ $GOBIN/unxor -h
 
 # Usage (Python)
 
