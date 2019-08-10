@@ -7,4 +7,4 @@ matrix:
     group: edge
     language: go
 script:
-- go test
+- go test github.com/tomchop/unxor/unxorlib
