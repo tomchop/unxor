@@ -10,6 +10,13 @@ This should work:
 
     $ go install github.com/tomchop/unxor
     $ $GOBIN/unxor -h
+    Usage of /Users/tomchop/code/go/bin/unxor:
+    -f string
+            Filename to decrypt
+    -g string
+            Known plaintext (string)
+    -gh string
+            Known plaintext (hex encoded)
 
 # Usage (Python)
 
