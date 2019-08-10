@@ -16,17 +16,17 @@ func parseArgs() (*string, *string, *string) {
 	flag.Parse()
 
 	if *fn == "" {
-		fmt.Printf("You must specify a filename with the -f flag.")
+		fmt.Println("You must specify a filename with the -f flag.")
 		os.Exit(-1)
 	}
 
 	if *g != "" && *gh != "" {
-		fmt.Printf("-gh and -h are mutually exclusive.")
+		fmt.Println("-gh and -h are mutually exclusive.")
 		os.Exit(-1)
 	}
 
 	if *g == "" && *gh == "" {
-		fmt.Printf("You must specify either -gh or -g.")
+		fmt.Println("You must specify either -gh or -g.")
 		os.Exit(-1)
 	}
 
