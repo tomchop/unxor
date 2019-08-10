@@ -1,4 +1,4 @@
-[![Build Status](https://travis-ci.com/tomchop/unxor.svg?branch=master)](https://travis-ci.com/tomchop/unxor)
+[![Build Status](https://travis-ci.com/tomchop/unxor.svg?branch=master)](https://travis-ci.com/tomchop/unxor) [![Go Report Card](https://goreportcard.com/badge/github.com/tomchop/unxor)](https://goreportcard.com/report/github.com/tomchop/unxor)
 
 # unXOR
 
