@@ -25,7 +25,19 @@ This should work:
     -gh string
             Known plaintext (hex encoded)
 
-# Usage (Python)
+## Usage (docker)
+
+    $ docker pull tomchop/unxor
+    $ docker run --rm -v $PWD:/data tomchop/unxor -h
+    Usage of /go/bin/unxor:
+    -f string
+            Filename to decrypt
+    -g string
+            Known plaintext (string)
+    -gh string
+            Known plaintext (hex encoded)
+
+## Usage (Python)
 
 Python sources are contained in the `pyunxor` directory.
 
