@@ -2,6 +2,7 @@ package unxor
 
 import (
 	"bytes"
+	"fmt"
 	"testing"
 )
 
@@ -15,12 +16,18 @@ func TestFindKey(t *testing.T) {
 		{"test_data/xored_file_ABCDEF01", " messenger", []byte{0xAB, 0xCD, 0xEF, 0x01}},
 		{"test_data/xored_file_ABCDEF0102", "messenger ", []byte{0xAB, 0xCD, 0xEF, 0x01, 0x02}},
 		{"test_data/xored_file_ABCDEF1234567890", "sartorial messenger", []byte{0xAB, 0xCD, 0xEF, 0x12, 0x34, 0x56, 0x78, 0x90}},
+		{"test_data/xored_file_ABCDEF1234567890", "WILLNEVERFINDTHIS", []byte{}},
 	}
 	for _, c := range cases {
 		data := ReadFile(c.inFile)
-		guess := FindKey(data, []byte(c.knownPt))
+		guess, err := FindKey(data, []byte(c.knownPt))
 		if !bytes.Equal(guess, c.key) {
 			t.Errorf("FindKey failed: found %q, wanted %q", guess, c.key)
+		}
+		if c.knownPt == "WILLNEVERFINDTHIS" {
+			if fmt.Sprintf("%s", err) != "unxor: Key not found" {
+				t.Errorf("Error message not generated: %s", err)
+			}
 		}
 	}
 
