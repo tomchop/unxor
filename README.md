@@ -4,6 +4,8 @@
 
 This tool will search through an XOR-encoded file (binary, text-file, whatever) and use known-plaintext attacks to deduce the original keystream. Works on keys half as long as the known-plaintext, in linear complexity.
 
+[![asciicast](https://asciinema.org/a/N8AesY5euNnVnObTDbauY5q4X.svg)](https://asciinema.org/a/N8AesY5euNnVnObTDbauY5q4X)
+
 ## Usage (Golang)
 
 This should work:
