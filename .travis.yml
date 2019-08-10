@@ -1,0 +1,10 @@
+matrix:
+  include:
+  - name: "Golang"
+    os: linux
+    dist: xenial
+    sudo: required
+    group: edge
+    language: go
+script:
+- go test github.com/tomchop/unxor/unxorlib

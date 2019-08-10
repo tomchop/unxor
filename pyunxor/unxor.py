@@ -77,7 +77,7 @@ def selective(crypt, search):
 			logging.info("[*] Trying key length %s" % keylen)
 			logging.debug("================================================================")
 			logging.debug("Crypt:\t\t %s" % " ".join(a.encode('hex') for a in crypt))
-			logging.debug("Norm_crypt:\t %s" % " ".join(a.encode('hex') for a in norm_crypt)) 
+			logging.debug("Norm_crypt:\t %s" % " ".join(a.encode('hex') for a in norm_crypt))
 			logging.debug("Norm_search:\t %s" % " ".join(a.encode('hex') for a in norm_search))
 			logging.debug("================================================================")
 
@@ -89,11 +89,11 @@ def selective(crypt, search):
 			while offset < keylen and len(indexes) == 0 and len(norm_search) > 0:
 					offset += 1
 					logging.debug("Offset: %s", offset)
-					
+
 					sel_crypt = crypt[offset::keylen]
 					norm_crypt = xor(sel_crypt,sel_crypt[1:])
 
-					
+
 					if len(norm_search) > 0:
 						indexes = [m.start() for m in re.finditer(re.escape(norm_search), norm_crypt)]
 
@@ -103,15 +103,15 @@ def selective(crypt, search):
 				for index in indexes:
 					logging.debug("[*] Search term (%s) found at %s (%s in the cyphertext)" % ("^".join(sel_search), index, index*keylen+offset))
 
-					keystr_guess = sel_crypt[index:index+len(norm_search)]	
-					
+					keystr_guess = sel_crypt[index:index+len(norm_search)]
+
 					keystr_guess = xor(keystr_guess, sel_search)[:1]
 					logging.debug("(%s, %s)" %(keystr_guess, keystr_guess.encode('hex')))
-					
+
 					# we have to 'expand' the partial keystream found to the original keylength
 					long_key = ""
 					long_plaintext = ""
-					
+
 					# we assume that the place where our symbol was found is the start of the search string
 					# this may or may not be a coincidence
 
@@ -121,7 +121,7 @@ def selective(crypt, search):
 								long_key += keystr_guess
 							else:
 								long_key += chr(ord(search[i])^ord(crypt[index*keylen+i+offset]))
-							
+
 					if long_key != "":
 						long_key = long_key[-(offset % keylen):] + long_key[:-(offset % keylen)]
 
@@ -142,7 +142,7 @@ def selective(crypt, search):
 
 
 def iterative(crypt, search, once=False):
-	
+
 	norm_crypt = crypt
 	norm_search = search
 	i = 0
@@ -165,7 +165,7 @@ def iterative(crypt, search, once=False):
 			logging.info("[*] Trying key length %s" % keylen)
 			logging.debug("="*64)
 			logging.debug("Crypt:\t\t %s" % " ".join(a.encode('hex') for a in crypt))
-			logging.debug("Norm:\t\t %s" % " ".join(a.encode('hex') for a in norm_crypt)) 
+			logging.debug("Norm:\t\t %s" % " ".join(a.encode('hex') for a in norm_crypt))
 			logging.debug("Norm_search:\t %s" % " ".join(a.encode('hex') for a in norm_search))
 			logging.debug("="*64)
 
@@ -188,15 +188,15 @@ def iterative(crypt, search, once=False):
 					keystr_guess = xor(keystr_guess,search)
 					# first keystream guess
 					keystr_guess = keystr_guess[:keylen]
-					
+
 					if len(norm_search) < keylen:
 						logging.info("[.] Normalized search (%s) is shorter than key length (%s)" % (len(norm_search), keylen))
 						logging.info("[.] This might be a false positive")
 					logging.info("[*] Keystream guess: %s" % keystr_guess.encode('hex'))
-					
+
 					# recover the actual key from the keystream guess - many decryptions and keys possible
 					decrypt, key = recover_key(crypt,keystr_guess,keylen,index,search)
-					
+
 					# check if the plaintext is found in the decrypted text
 					if decrypt.find(search) != -1:
 						logging.info("[*] Recovered key: %s" % key[:keylen].encode('hex'))
@@ -217,18 +217,18 @@ def iterative(crypt, search, once=False):
 	# we seem to have a valid decryption
 	if find:
 		return decryptions, keys
-	
-	# no valid encryption found 
-	elif len(norm_search) == 0: 
+
+	# no valid encryption found
+	elif len(norm_search) == 0:
 		logging.info("[!] Normalization level too high given the length of the known plaintext. Try again with a longer known plaintext.")
 		return None, None
-			
+
 
 
 def recover_key(crypt, keystr_guess, keylen, index, search):
 
 	partial = False
-	
+
 	# this means we haven't found the whole key, some bytes are missing
 	if len(keystr_guess) < keylen:
 		partial = True
@@ -238,14 +238,14 @@ def recover_key(crypt, keystr_guess, keylen, index, search):
 	if len(keystr_guess) < keylen:
 		logging.info("[?] Some bytes of the key are missing, taking a wild guess (assuming findings ~ search query)")
 		logging.info("[?] If results don't make sense, try searching for something with less entropy (e.g. URLs), or use a longer search string")
-	
+
 	while len(keystr_guess) < keylen:
-		# we take a wild guess, and suppose the keystream guess was found 
+		# we take a wild guess, and suppose the keystream guess was found
 		# because of an occurrence of our search term in the plaintext
 		findings = decrypt.find(search[:(index%len(keystr_guess))])
 		keystr_guess += chr(ord(crypt[index+len(keystr_guess)])^ord(search[len(keystr_guess)]))
 
-	# get the correct start of the keystream	
+	# get the correct start of the keystream
 	key = keystr_guess[-(index % keylen):]
 	key += keystr_guess[:-(index % keylen)]
 
@@ -254,7 +254,7 @@ def recover_key(crypt, keystr_guess, keylen, index, search):
 		key += key
 
 	decrypt = xor(crypt,key)
-	
+
 	return decrypt, key[:keylen]
 
 
@@ -276,7 +276,7 @@ def decryption(crypt, search, method, debug=False):
 if __name__ == '__main__':
 
 	parser = argparse.ArgumentParser(description="Decode XOR-encoded files. Can try guessing keys using known-plaintext attacks.")
-	
+
 	mutex = parser.add_mutually_exclusive_group(required=True)
 	mutex.add_argument("-g", "--guess", help="Search string to use when trying known-plaintext attacks")
 	mutex.add_argument("-k", "--key", help="The XOR key (hex)")
@@ -284,11 +284,11 @@ if __name__ == '__main__':
 	guess = parser.add_argument_group(title='Unknown key')
 	guess.add_argument("-m","--method", choices=['iterative','selective'], default="iterative", help='Use iterative or selective (experimental) method')
 	guess.add_argument("-x", "--hex", help="Search in hex", action="store_true")
-	
+
 	parser.add_argument("infile", nargs="?", help="The file to read from", type=argparse.FileType("r"), default=sys.stdin)
 	parser.add_argument("outfile", nargs="?", help="The dump file", type=argparse.FileType('w'), default=sys.stdout)
 	parser.add_argument("-v", "--verbose", help="Verbose output", type=int, choices=[0,1,2], default=0)
-	
+
 	args = parser.parse_args()
 	infile = args.infile
 	outfile = args.outfile
@@ -336,9 +336,3 @@ if __name__ == '__main__':
 				outfile.write(d)
 			if args.verbose > 0:
 				outfile.write("\n")
-
-
-
-		
-
-
