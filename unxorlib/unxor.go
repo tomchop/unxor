@@ -48,12 +48,11 @@ func FindKey(crypt []byte, search []byte) ([]byte, error) {
 			keylen := (i/2 + 1)
 			fmt.Printf("Trying keylen %d:", keylen)
 			fmt.Printf("Searching for %q\n", nSearch)
-			pos := bytes.Index(nCrypt, nSearch)
 			re := regexp.MustCompile(regexp.QuoteMeta(string(nSearch)))
 			matches := re.FindAllIndex(nCrypt, -1)
 			if matches != nil {
 				for _, m := range matches {
-					pos = m[0]
+					pos := m[0]
 					fmt.Printf("Found normalized text at %d\n", pos)
 					guess := Xor(crypt[pos:pos+len(search)], search)
 					if keylen < len(search) {
