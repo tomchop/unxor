@@ -25,7 +25,11 @@ This should work:
     -gh string
             Known plaintext (hex encoded)
 
-## Usage (docker)
+## Usage (Docker)
+
+You need to map `$PWD` (or the directory where your file is) to the `/data`
+volume in Docker so that the container knows where to find your files. The
+decrypted file will be written in the same directory.
 
     $ docker pull tomchop/unxor
     $ docker run --rm -v $PWD:/data tomchop/unxor -h
