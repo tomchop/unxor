@@ -7,7 +7,7 @@ and use known-plaintext attacks to deduce the original keystream. Works on keys
 half as long as the known-plaintext, in linear complexity.
 
 Here's a demo of the Golang binary decrypting a plaintext file XORed with
-`0xABCDEF` and where our known-plaintext is `leggings`.
+`0xABCDEF` (3 bytes) and where our known-plaintext is `leggings`.
 
 ![demo](demo.gif)
 
