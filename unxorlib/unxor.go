@@ -4,12 +4,9 @@ import (
 	"bytes"
 	"fmt"
 	"io/ioutil"
+	"os"
 	"regexp"
 )
-
-func main() {
-	fmt.Println("Hello, world.")
-}
 
 // Xor performs a rolling-xor on cleartext with a key
 func Xor(cleartext []byte, k []byte) []byte {
@@ -91,4 +88,11 @@ func ReadFile(fn string) []byte {
 		panic(err)
 	}
 	return data
+}
+
+// DumpToFile dumps bytes to a file on disk
+func DumpToFile(b []byte, fname string) int {
+	f, _ := os.Create(fname)
+	n, _ := f.Write(b)
+	return n
 }
