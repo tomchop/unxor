@@ -2,6 +2,7 @@ package unxor
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -31,7 +32,7 @@ func XorMin(cleartext []byte, k []byte) []byte {
 }
 
 // FindKey tries to find a key in a cyphertext based on known plaintext
-func FindKey(crypt []byte, search []byte) []byte {
+func FindKey(crypt []byte, search []byte) ([]byte, error) {
 	nSearch := make([]byte, len(search))
 	nCrypt := make([]byte, len(crypt))
 	copy(nSearch, search)
@@ -64,14 +65,14 @@ func FindKey(crypt []byte, search []byte) []byte {
 					decrypt := Xor(crypt, guess)
 					if bytes.Index(decrypt, search) != -1 {
 						fmt.Printf("Found good decryption for %q\n", guess)
-						return guess
+						return guess, nil
 					}
 				}
 			}
 
 		}
 	}
-	return []byte{}
+	return []byte{}, errors.New("unxor: Key not found")
 }
 
 func shiftSlice(slice []byte, n int) []byte {
