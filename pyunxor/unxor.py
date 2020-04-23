@@ -32,7 +32,7 @@ Written by Thomas Chopitea (@tomchop_)
 
 # quick shannon-entropy calculation
 def H(data):
-  	h = 0
+	h = 0
 	entropy = 0
 	for x in range(256):
 		p_x = float(data.count(chr(x)))/float(len(data))
@@ -301,7 +301,7 @@ if __name__ == '__main__':
 
 	if args.key:
 		if not re.match("^([a-fA-F0-9]{2,2})+$",args.key):
-			print "The key must be given in hex (e.g. FF00FF00)"
+			print("The key must be given in hex (e.g. FF00FF00)")
 			exit()
 		crypt = infile.read()
 		key = genkey(args.key,len(crypt))
